@@ -1,0 +1,12 @@
+[profile.default]
+src = "src/exercises"
+out = "out"
+libs = ["lib"]
+
+[rpc_endpoints]
+mainnet = "${FORK_URL}"
+
+[profile.solution]
+src = "src/solutions"
+out = "out"
+libs = ["lib"]
