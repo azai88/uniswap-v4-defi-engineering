@@ -6,9 +6,7 @@ interface IPoolManager {
 }
 
 interface IUnlockCallback {
-    function unlockCallback(
-        bytes calldata data
-    ) external returns (bytes memory);
+    function unlockCallback(bytes calldata data) external returns (bytes memory);
 }
 
 contract Router is IUnlockCallback {
@@ -31,9 +29,7 @@ contract Router is IUnlockCallback {
         poolManager.unlock(data);
     }
 
-    function unlockCallback(
-        bytes calldata data
-    ) external onlyPoolManager returns (bytes memory) {
+    function unlockCallback(bytes calldata data) external onlyPoolManager returns (bytes memory) {
         return data;
     }
 }
