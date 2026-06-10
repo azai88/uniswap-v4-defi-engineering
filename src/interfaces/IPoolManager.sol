@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.35;
 
-import {PoolKey} from "../types/PoolKey.sol";
-import {BalanceDelta} from "../types/BalanceDelta.sol";
-
-interface IPoolManager {
-    function unlock(bytes calldata data) external returns (bytes memory);
-
-    function swap(
-        PoolKey calldata key,
-        SwapParams calldata params,
-        bytes calldata hookData
-    ) external returns (BalanceDelta);
-}
+import {Currency} from "../types/Currency.sol";
 
 struct SwapParams {
     bool zeroForOne;
     int256 amountSpecified;
     uint160 sqrtPriceLimitX96;
+}
+
+interface IPoolManager {
+    function unlock(bytes calldata data) external returns (bytes memory);
+
+    function currencyDelta(
+        address target,
+        Currency currency
+    ) external view returns (int256);
 }
