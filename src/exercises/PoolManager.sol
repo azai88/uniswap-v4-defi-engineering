@@ -3,16 +3,28 @@ pragma solidity ^0.8.35;
 
 import {Currency} from "../types/Currency.sol";
 import {IFlashLoanReceiver} from "../interfaces/IFlashLoanReceiver.sol";
+import {IHooks} from "../interfaces/IHooks.sol";
 
 contract PoolManager {
     mapping(address => mapping(Currency => int256)) internal deltas;
+
+    IHooks public hook;
 
     event Unlock(address indexed caller);
 
     event FlashLoan(address indexed borrower, address indexed receiver, uint256 amount);
 
+    event SwapExecuted(address indexed sender, uint256 amount);
+
+    constructor() {}
+
+    function setHook(IHooks _hook) external {
+        hook = _hook;
+    }
+
     function unlock(bytes calldata data) external returns (bytes memory) {
         emit Unlock(msg.sender);
+
         return data;
     }
 
@@ -40,5 +52,19 @@ contract PoolManager {
         IFlashLoanReceiver(receiver).executeOperation(data);
 
         require(deltas[receiver][currency] >= 0, "FLASH_LOAN_NOT_REPAID");
+    }
+
+    function swap(Currency currency, uint256 amount) external {
+        if (address(hook) != address(0)) {
+            hook.beforeSwap(msg.sender, amount);
+        }
+
+        deltas[msg.sender][currency] -= int256(amount);
+
+        emit SwapExecuted(msg.sender, amount);
+
+        if (address(hook) != address(0)) {
+            hook.afterSwap(msg.sender, amount);
+        }
     }
 }
