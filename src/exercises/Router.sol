@@ -1,35 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.35;
 
-interface IPoolManager {
-    function unlock(bytes calldata data) external returns (bytes memory);
-}
+import {IPoolManager} from "../interfaces/IPoolManager.sol";
+import {Currency} from "../types/Currency.sol";
 
-interface IUnlockCallback {
-    function unlockCallback(bytes calldata data) external returns (bytes memory);
-}
-
-contract Router is IUnlockCallback {
-    error NotPoolManager();
-
+contract Router {
     IPoolManager public immutable poolManager;
 
-    constructor(address _poolManager) {
-        poolManager = IPoolManager(_poolManager);
+    address private _msgSender;
+
+    constructor(IPoolManager _poolManager) {
+        poolManager = _poolManager;
     }
 
-    modifier onlyPoolManager() {
-        if (msg.sender != address(poolManager)) {
-            revert NotPoolManager();
-        }
-        _;
+    /// @notice identity passthrough for hooks
+    function getMsgSender() external view returns (address) {
+        return _msgSender;
     }
 
-    function unlock(bytes calldata data) external {
-        poolManager.unlock(data);
-    }
+    function swap(Currency currency, uint256 amount) external {
+        _msgSender = msg.sender;
 
-    function unlockCallback(bytes calldata data) external onlyPoolManager returns (bytes memory) {
-        return data;
+        poolManager.swap(currency, amount);
+
+        _msgSender = address(0);
     }
 }
