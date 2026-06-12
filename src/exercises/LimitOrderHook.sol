@@ -9,76 +9,63 @@ contract LimitOrderHook is IHooks {
         address user;
         uint256 targetPrice;
         uint256 amount;
-        bool isBuy;
+        bool isBuyOrder;
         bool executed;
     }
 
-    LimitOrder[] public orders;
-
     uint256 public currentPrice;
 
-    event BeforeInitialize();
-    event AfterInitialize();
+    uint256 public nextOrderId;
 
-    event BeforeSwap(address sender, uint256 amount);
-    event AfterSwap(address sender, uint256 amount);
+    mapping(uint256 => LimitOrder) public orders;
 
-    event LimitOrderCreated(address indexed user, uint256 targetPrice, uint256 amount, bool isBuy);
+    event OrderCreated(
+        uint256 indexed orderId, address indexed user, uint256 targetPrice, uint256 amount, bool isBuyOrder
+    );
 
-    event LimitOrderExecuted(address indexed user, uint256 executionPrice, uint256 amount, bool isBuy);
+    event OrderExecuted(uint256 indexed orderId, address indexed user);
 
-    function placeOrder(uint256 targetPrice, uint256 amount, bool isBuy) external {
-        orders.push(
-            LimitOrder({user: msg.sender, targetPrice: targetPrice, amount: amount, isBuy: isBuy, executed: false})
-        );
+    function createOrder(uint256 targetPrice, uint256 amount, bool isBuyOrder) external {
+        orders[nextOrderId] = LimitOrder({
+            user: msg.sender, targetPrice: targetPrice, amount: amount, isBuyOrder: isBuyOrder, executed: false
+        });
 
-        emit LimitOrderCreated(msg.sender, targetPrice, amount, isBuy);
+        emit OrderCreated(nextOrderId, msg.sender, targetPrice, amount, isBuyOrder);
+
+        nextOrderId++;
     }
 
-    function setPrice(uint256 price) external {
-        currentPrice = price;
+    function setPrice(uint256 newPrice) external {
+        currentPrice = newPrice;
     }
 
-    function getOrdersCount() external view returns (uint256) {
-        return orders.length;
-    }
+    function executeOrders() internal {
+        for (uint256 i = 0; i < nextOrderId; i++) {
+            LimitOrder storage order = orders[i];
 
-    function beforeInitialize(PoolKey calldata, uint160) external override {
-        emit BeforeInitialize();
-    }
-
-    function afterInitialize(PoolKey calldata, uint160) external override {
-        emit AfterInitialize();
-    }
-
-    function beforeSwap(address sender, uint256 amount) external override {
-        emit BeforeSwap(sender, amount);
-    }
-
-    function afterSwap(address sender, uint256 amount) external override {
-        emit AfterSwap(sender, amount);
-
-        for (uint256 i = 0; i < orders.length; i++) {
-            if (orders[i].executed) {
+            if (order.executed) {
                 continue;
             }
 
-            // BUY LIMIT
-            if (orders[i].isBuy && currentPrice <= orders[i].targetPrice) {
-                orders[i].executed = true;
+            bool triggerBuy = order.isBuyOrder && currentPrice <= order.targetPrice;
 
-                emit LimitOrderExecuted(orders[i].user, currentPrice, orders[i].amount, true);
-            }
+            bool triggerSell = !order.isBuyOrder && currentPrice >= order.targetPrice;
 
-            // SELL LIMIT
-            if (!orders[i].isBuy && currentPrice >= orders[i].targetPrice) {
-                orders[i].executed = true;
+            if (triggerBuy || triggerSell) {
+                order.executed = true;
 
-                emit LimitOrderExecuted(orders[i].user, currentPrice, orders[i].amount, false);
+                emit OrderExecuted(i, order.user);
             }
         }
+    }
 
-        sender;
-        amount;
+    function beforeInitialize(PoolKey calldata, uint160) external override {}
+
+    function afterInitialize(PoolKey calldata, uint160) external override {}
+
+    function beforeSwap(address, uint256) external override {}
+
+    function afterSwap(address, uint256) external override {
+        executeOrders();
     }
 }
